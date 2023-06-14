@@ -153,4 +153,6 @@ test("navigator", () => {
   const userAgent = `Bun/${version}`;
   expect(navigator.hardwareConcurrency > 0).toBe(true);
   expect(navigator.userAgent).toBe(userAgent);
+  expect(navigator.language).toBe(process.env.LANG);
+  expect(navigator.languages).toEqual([process.env.LANG]);
 });

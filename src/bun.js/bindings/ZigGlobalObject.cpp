@@ -188,6 +188,8 @@ constexpr size_t DEFAULT_ERROR_STACK_TRACE_LIMIT = 10;
 #include <unistd.h>
 #endif
 
+#include <locale.h>
+
 // #include <iostream>
 static bool has_loaded_jsc = false;
 
@@ -2791,18 +2793,32 @@ void GlobalObject::finishCreation(VM& vm)
             cpuCount = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 
-            auto str = WTF::String::fromUTF8(Bun__userAgent);
+            auto userAgent = WTF::String::fromUTF8(Bun__userAgent);
+            auto language = WTF::String::fromUTF8(setlocale(LC_ALL, ""));
+            JSC::JSValue languageJs = JSC::jsString(init.vm, language);
+            JSC::JSArray *languagesJs = JSC::JSArray::create(
+                init.vm,
+                init.owner->arrayStructureForIndexingTypeDuringAllocation(JSC::ArrayWithContiguous),
+                1
+            );
+
+            JSC::ObjectInitializationScope initObject(init.vm);
+            languagesJs->initializeIndex(initObject, 0, languageJs);
+
             JSC::Identifier userAgentIdentifier = JSC::Identifier::fromString(init.vm, "userAgent"_s);
             JSC::Identifier hardwareConcurrencyIdentifier = JSC::Identifier::fromString(init.vm, "hardwareConcurrency"_s);
+            JSC::Identifier languageIdentifier = JSC::Identifier::fromString(init.vm, "language"_s);
+            JSC::Identifier languagesIdentifier = JSC::Identifier::fromString(init.vm, "languages"_s);
 
             JSC::JSObject* obj = JSC::constructEmptyObject(init.owner, init.owner->objectPrototype(), 3);
-            obj->putDirect(init.vm, userAgentIdentifier, JSC::jsString(init.vm, str));
+            obj->putDirect(init.vm, userAgentIdentifier, JSC::jsString(init.vm, userAgent));
             obj->putDirect(init.vm, init.vm.propertyNames->toStringTagSymbol,
                 jsNontrivialString(init.vm, "Navigator"_s), JSC::PropertyAttribute::DontEnum | JSC::PropertyAttribute::ReadOnly);
-
             obj->putDirect(init.vm, hardwareConcurrencyIdentifier, JSC::jsNumber(cpuCount));
-            init.set(
-                obj);
+            obj->putDirect(init.vm, languageIdentifier, languageJs);
+            obj->putDirect(init.vm, languagesIdentifier, languagesJs);
+
+            init.set(obj);
         });
 
     this->m_pendingVirtualModuleResultStructure.initLater(
